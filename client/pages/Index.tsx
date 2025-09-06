@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -626,8 +628,6 @@ function simpleTriage(input: SymptomCheckInput): SymptomCheckResult {
     redFlags,
   };
 }
-
-import { useAuth } from "@/lib/auth";
 
 function OfflineRecords() {
   const { t } = useI18n();
