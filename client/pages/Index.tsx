@@ -282,8 +282,16 @@ function Consultation() {
       <Card className="mt-4">
         <CardContent className="pt-6 grid gap-6 md:grid-cols-2">
           <div className="space-y-3">
-            <div className="aspect-video rounded-md overflow-hidden border bg-black/80">
-              <video ref={remoteRef} autoPlay playsInline className="h-full w-full object-cover" />
+            <div className="aspect-video rounded-md overflow-hidden border bg-black/80 relative">
+              <video ref={remoteRef} autoPlay playsInline className="h-full w-full object-cover absolute inset-0" style={{display: remoteRef.current && (remoteRef.current as any).srcObject ? 'block' : 'none'}} />
+              <video
+                className="h-full w-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                src="https://media.w3.org/2010/05/sintel/trailer.mp4"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="flex items-center gap-2">
