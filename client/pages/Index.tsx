@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { DemoResponse, MedicinesResponse, SymptomCheckResult, SymptomCheckInput } from "@shared/api";
-import { Activity, Brain, Database, Languages, MapPin, Server, Stethoscope } from "lucide-react";
+import { Activity, Brain, Database, Languages, MapPin, Mic, ScreenShare, Server, Stethoscope, Video, VideoOff } from "lucide-react";
 
 export default function Index() {
   const { t } = useI18n();
@@ -31,15 +31,15 @@ export default function Index() {
       <Hero />
       <Stats />
       <Features />
+      <Consultation />
       <div className="container grid gap-6 py-10 md:grid-cols-2">
         <SymptomChecker />
         <OfflineRecords />
       </div>
       <MedicineAvailability />
       <Architecture />
-      <Stakeholders />
-      <Outcomes />
-      <FooterDiagram />
+      <AboutUs />
+      <FooterRibbon />
       <p className="sr-only">{exampleFromServer}</p>
     </div>
   );
@@ -162,6 +162,175 @@ function FeatureCard({ icon, title, desc }: { icon: React.ReactNode; title: stri
   );
 }
 
+function Consultation() {
+  const localRef = useRef<HTMLVideoElement | null>(null);
+  const remoteRef = useRef<HTMLVideoElement | null>(null);
+  const pc1 = useRef<RTCPeerConnection | null>(null);
+  const pc2 = useRef<RTCPeerConnection | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [running, setRunning] = useState(false);
+  const [lowData, setLowData] = useState(true);
+  const [videoEnabled, setVideoEnabled] = useState(true);
+  const [audioEnabled, setAudioEnabled] = useState(true);
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+
+  async function start() {
+    const constraints: MediaStreamConstraints = {
+      audio: { noiseSuppression: true, echoCancellation: true },
+      video: videoEnabled
+        ? lowData
+          ? { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 15 } }
+          : { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } }
+        : false,
+    } as any;
+
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    setLocalStream(stream);
+    if (localRef.current) localRef.current.srcObject = stream;
+
+    pc1.current = new RTCPeerConnection();
+    pc2.current = new RTCPeerConnection();
+
+    const rs = new MediaStream();
+    setRemoteStream(rs);
+    if (remoteRef.current) remoteRef.current.srcObject = rs;
+
+    pc2.current.ontrack = (e) => {
+      e.streams[0].getTracks().forEach((t) => rs.addTrack(t));
+    };
+
+    stream.getTracks().forEach((t) => pc1.current!.addTrack(t, stream));
+
+    const offer = await pc1.current.createOffer();
+    await pc1.current.setLocalDescription(offer);
+    await pc2.current.setRemoteDescription(offer);
+
+    const answer = await pc2.current.createAnswer();
+    await pc2.current.setLocalDescription(answer);
+    await pc1.current.setRemoteDescription(answer);
+
+    setRunning(true);
+  }
+
+  function toggleAudio() {
+    const enabled = !audioEnabled;
+    setAudioEnabled(enabled);
+    localStream?.getAudioTracks().forEach((t) => (t.enabled = enabled));
+  }
+
+  function toggleVideo() {
+    const enabled = !videoEnabled;
+    setVideoEnabled(enabled);
+    localStream?.getVideoTracks().forEach((t) => (t.enabled = enabled));
+  }
+
+  async function shareScreen() {
+    try {
+      const display = await (navigator.mediaDevices as any).getDisplayMedia({ video: true, audio: true });
+      const sender = pc1.current?.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) await sender.replaceTrack(display.getVideoTracks()[0]);
+      if (remoteRef.current) remoteRef.current.focus();
+      display.getVideoTracks()[0].addEventListener("ended", async () => {
+        if (localStream?.getVideoTracks()[0] && sender) await sender.replaceTrack(localStream.getVideoTracks()[0]);
+      });
+    } catch {}
+  }
+
+  function startRecording() {
+    const mix = new MediaStream([
+      ...(remoteStream ? remoteStream.getTracks() : []),
+      ...(localStream ? localStream.getAudioTracks() : []),
+    ]);
+    const rec = new MediaRecorder(mix, { mimeType: "video/webm;codecs=vp8,opus" });
+    setRecorder(rec);
+    chunks.current = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
+    rec.onstop = () => {
+      const blob = new Blob(chunks.current, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `consultation-${Date.now()}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+    rec.start();
+  }
+
+  function stopRecording() {
+    recorder?.stop();
+    setRecorder(null);
+  }
+
+  function end() {
+    pc1.current?.close();
+    pc2.current?.close();
+    pc1.current = null;
+    pc2.current = null;
+    localStream?.getTracks().forEach((t) => t.stop());
+    remoteStream?.getTracks().forEach((t) => t.stop());
+    setLocalStream(null);
+    setRemoteStream(null);
+    setRunning(false);
+  }
+
+  return (
+    <section id="consult" className="container py-10">
+      <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><Video className="h-6 w-6 text-primary" /> Online consultation (video + audio)</h2>
+      <Card className="mt-4">
+        <CardContent className="pt-6 grid gap-6 md:grid-cols-2">
+          <div className="space-y-3">
+            <div className="aspect-video rounded-md overflow-hidden border bg-black/80">
+              <video ref={remoteRef} autoPlay playsInline className="h-full w-full object-cover" />
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="flex items-center gap-2">
+                <input id="low" type="checkbox" checked={lowData} onChange={(e) => setLowData(e.target.checked)} />
+                <label htmlFor="low">Low data (240p/15fps)</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="vid" type="checkbox" checked={videoEnabled} onChange={toggleVideo} />
+                <label htmlFor="vid">Video</label>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="aud" type="checkbox" checked={audioEnabled} onChange={toggleAudio} />
+                <label htmlFor="aud">Audio</label>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {!running ? (
+                <Button onClick={start}>
+                  <Video className="h-4 w-4" /> Start consultation
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={toggleAudio}><Mic className="h-4 w-4" /> {audioEnabled ? "Mute" : "Unmute"}</Button>
+                  <Button variant="outline" onClick={toggleVideo}><VideoOff className="h-4 w-4" /> {videoEnabled ? "Stop video" : "Start video"}</Button>
+                  <Button variant="outline" onClick={shareScreen}><ScreenShare className="h-4 w-4" /> Share screen</Button>
+                  {!recorder ? (
+                    <Button variant="default" onClick={startRecording}>Record</Button>
+                  ) : (
+                    <Button variant="destructive" onClick={stopRecording}>Stop recording</Button>
+                  )}
+                  <Button variant="ghost" onClick={end}>End</Button>
+                </>
+              )}
+            </div>
+          </div>
+          <div>
+            <div className="aspect-video rounded-md overflow-hidden border bg-black/40">
+              <video ref={localRef} autoPlay muted playsInline className="h-full w-full object-cover" />
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Local preview (muted)</p>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
 function SymptomChecker() {
   const { t } = useI18n();
   const [input, setInput] = useState<SymptomCheckInput>({ age: 30, symptoms: [], notes: "" });
@@ -249,7 +418,7 @@ function simpleTriage(input: SymptomCheckInput): SymptomCheckResult {
   if (s.has("breath")) redFlags.push("breathlessness");
   if (input.age > 65 && (s.has("fever") || s.has("cough"))) redFlags.push("age > 65 with fever/cough");
 
-  if (s.has("injury") || s.has("vomit") && s.has("breath")) {
+  if (s.has("injury") || (s.has("vomit") && s.has("breath"))) {
     return { level: "urgent", advice: "Seek emergency care immediately.", redFlags };
   }
   if (s.has("chest") || s.has("breath")) {
@@ -477,63 +646,29 @@ function Architecture() {
   );
 }
 
-function Stakeholders() {
-  const { t } = useI18n();
+function AboutUs() {
   return (
-    <section id="stakeholders" className="container py-10">
-      <h2 className="text-2xl md:text-3xl font-bold">{t("stakeholders_title")}</h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-5">
-        <StakeholderCard label={t("stakeholders_list_patients")} />
-        <StakeholderCard label={t("stakeholders_list_staff")} />
-        <StakeholderCard label={t("stakeholders_list_dept")} />
-        <StakeholderCard label={t("stakeholders_list_pharmacies")} />
-        <StakeholderCard label={t("stakeholders_list_farmers")} />
+    <section id="about" className="container py-12">
+      <h2 className="text-2xl md:text-3xl font-bold">About us</h2>
+      <div className="mt-4 grid gap-6 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Mission</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Make quality care accessible in rural India through low‑bandwidth telemedicine, offline health records, and transparent medicine availability.</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Team</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Public health experts, rural clinicians, and engineers with experience in PWA, WebRTC, and scalable cloud.</CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Partners</CardTitle></CardHeader>
+          <CardContent className="text-sm text-muted-foreground">Working with district hospitals, local pharmacies, and Punjab Health Department to pilot and scale.</CardContent>
+        </Card>
       </div>
     </section>
   );
 }
 
-function StakeholderCard({ label }: { label: string }) {
-  return (
-    <Card>
-      <CardContent className="pt-6 text-center font-medium">{label}</CardContent>
-    </Card>
-  );
-}
-
-function Outcomes() {
-  const { t } = useI18n();
-  return (
-    <section id="outcomes" className="container py-12">
-      <div className="grid gap-8 md:grid-cols-2">
-        <div>
-          <h3 className="text-xl font-bold">{t("problem_title")}</h3>
-          <p className="mt-2 text-muted-foreground">{t("problem_copy")}</p>
-          <h3 className="mt-6 text-xl font-bold">{t("impact_title")}</h3>
-          <p className="mt-2 text-muted-foreground">{t("impact_copy")}</p>
-        </div>
-        <div>
-          <h3 className="text-xl font-bold">{t("outcomes_title")}</h3>
-          <ul className="mt-2 text-muted-foreground list-disc pl-5 space-y-1">
-            <li>Faster tele‑consult triage with AI assist</li>
-            <li>Lower travel and medicine search time</li>
-            <li>Continuity of care via offline records</li>
-            <li>Better stock visibility across pharmacies</li>
-          </ul>
-          <h3 className="mt-6 text-xl font-bold">{t("scalability_title")}</h3>
-          <ul className="mt-2 text-muted-foreground list-disc pl-5 space-y-1">
-            <li>Modular micro‑frontends per district</li>
-            <li>Configurable locales: Punjabi, Hindi, English</li>
-            <li>Low‑bandwidth patterns: image‑lite UI, code‑split</li>
-            <li>Open APIs for Health Dept & partners</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function FooterDiagram() {
+function FooterRibbon() {
   return (
     <section className="bg-secondary/60 py-12">
       <div className="container text-center">
