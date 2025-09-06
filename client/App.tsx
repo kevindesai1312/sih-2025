@@ -9,7 +9,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/layout/Layout";
-import { I18nProvider } from "./lib/i18n";
+import { I18nProvider } from "./lib/i18n.tsx";
 
 const queryClient = new QueryClient();
 
