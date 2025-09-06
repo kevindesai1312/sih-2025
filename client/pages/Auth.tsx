@@ -28,7 +28,11 @@ export default function Auth() {
     const fd = new FormData(e.currentTarget);
     setError(null);
     try {
-      await signup(String(fd.get("name")), String(fd.get("email")), String(fd.get("password")));
+      await signup(
+        String(fd.get("name")),
+        String(fd.get("email")),
+        String(fd.get("password")),
+      );
       nav("/");
     } catch (err: any) {
       setError(err.message || "Signup failed");
@@ -54,17 +58,30 @@ export default function Auth() {
                   <Input name="email" type="email" required />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground">Password</label>
-                  <Input name="password" type="password" minLength={6} required />
+                  <label className="text-sm text-muted-foreground">
+                    Password
+                  </label>
+                  <Input
+                    name="password"
+                    type="password"
+                    minLength={6}
+                    required
+                  />
                 </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <Button type="submit" className="w-full">Login</Button>
+                {error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
+                <Button type="submit" className="w-full">
+                  Login
+                </Button>
               </form>
             </TabsContent>
             <TabsContent value="signup" className="mt-4">
               <form className="space-y-3" onSubmit={handleSignup}>
                 <div>
-                  <label className="text-sm text-muted-foreground">Full name</label>
+                  <label className="text-sm text-muted-foreground">
+                    Full name
+                  </label>
                   <Input name="name" required minLength={2} />
                 </div>
                 <div>
@@ -72,11 +89,22 @@ export default function Auth() {
                   <Input name="email" type="email" required />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground">Password</label>
-                  <Input name="password" type="password" minLength={6} required />
+                  <label className="text-sm text-muted-foreground">
+                    Password
+                  </label>
+                  <Input
+                    name="password"
+                    type="password"
+                    minLength={6}
+                    required
+                  />
                 </div>
-                {error && <div className="text-sm text-destructive">{error}</div>}
-                <Button type="submit" className="w-full">Create account</Button>
+                {error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
+                <Button type="submit" className="w-full">
+                  Create account
+                </Button>
               </form>
             </TabsContent>
           </Tabs>
