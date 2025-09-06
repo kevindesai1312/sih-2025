@@ -29,9 +29,9 @@ export default function Index() {
   return (
     <div className="bg-gradient-to-b from-secondary to-white">
       <Hero />
+      <Consultation />
       <Stats />
       <Features />
-      <Consultation />
       <div className="container grid gap-6 py-10 md:grid-cols-2">
         <SymptomChecker />
         <OfflineRecords />
