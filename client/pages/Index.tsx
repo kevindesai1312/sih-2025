@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
@@ -953,7 +952,7 @@ function Architecture() {
       <p className="mt-2 text-muted-foreground max-w-3xl">
         Web PWA (React + Vite + Tailwind) with offline caching and background
         sync; Express API for lightweight endpoints; optional SMS/IVR for
-        no‑internet access; pharmacy stock via polling/SSE; data stored in
+        no��internet access; pharmacy stock via polling/SSE; data stored in
         secure cloud DB with region replication.
       </p>
       <div className="mt-6 overflow-x-auto">
