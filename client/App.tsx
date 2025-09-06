@@ -10,6 +10,9 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Layout from "./components/layout/Layout";
 import { I18nProvider } from "./lib/i18n.tsx";
+import { AuthProvider } from "./lib/auth";
+import Auth from "./pages/Auth";
+import Awareness from "./pages/Awareness";
 
 const queryClient = new QueryClient();
 
@@ -20,13 +23,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <I18nProvider>
-          <Layout>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
+          <AuthProvider>
+            <Layout>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/awareness" element={<Awareness />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </AuthProvider>
         </I18nProvider>
       </BrowserRouter>
     </TooltipProvider>

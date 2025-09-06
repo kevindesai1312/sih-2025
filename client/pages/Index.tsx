@@ -441,8 +441,11 @@ function simpleTriage(input: SymptomCheckInput): SymptomCheckResult {
   return { level: "self_care", advice: "Rest, fluids, and monitor symptoms.", redFlags };
 }
 
+import { useAuth } from "@/lib/auth";
+
 function OfflineRecords() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
   const [notes, setNotes] = useState("");
@@ -526,7 +529,13 @@ function OfflineRecords() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={save}>{t("records_save")}</Button>
+          {user ? (
+            <Button onClick={save}>{t("records_save")}</Button>
+          ) : (
+            <Button asChild>
+              <a href="/auth">Login to save</a>
+            </Button>
+          )}
           <Button variant="outline" onClick={exportJson}>{t("records_export")}</Button>
           <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
             <input type="file" accept="application/json" className="hidden" onChange={importJson} />
@@ -554,8 +563,22 @@ function OfflineRecords() {
 function MedicineAvailability() {
   const { t } = useI18n();
   const [pincode, setPincode] = useState("");
+  const [query, setQuery] = useState("");
+  const [onlyStock, setOnlyStock] = useState(false);
+  const [sort, setSort] = useState<"stock" | "name">("stock");
+  const [watch, setWatch] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("watchlist") || "[]"); } catch { return []; }
+  });
   const [data, setData] = useState<MedicinesResponse | null>(null);
   const [loading, setLoading] = useState(false);
+
+  function cacheSet(pin: string, payload: MedicinesResponse) {
+    const key = `med_cache_${pin}`;
+    localStorage.setItem(key, JSON.stringify(payload));
+  }
+  function cacheGet(pin: string): MedicinesResponse | null {
+    try { return JSON.parse(localStorage.getItem(`med_cache_${pin}`) || "null"); } catch { return null; }
+  }
 
   async function load() {
     setLoading(true);
@@ -563,6 +586,10 @@ function MedicineAvailability() {
       const res = await fetch(`/api/medicines?pincode=${encodeURIComponent(pincode)}`);
       const json = (await res.json()) as MedicinesResponse;
       setData(json);
+      cacheSet(pincode, json);
+    } catch {
+      const cached = cacheGet(pincode);
+      if (cached) setData(cached);
     } finally {
       setLoading(false);
     }
@@ -578,17 +605,43 @@ function MedicineAvailability() {
   return (
     <section className="container py-10">
       <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2"><MapPin className="h-6 w-6 text-primary" /> {t("pharmacy_title")}</h2>
-      <div className="mt-4 flex gap-2">
-        <Input placeholder={t("pharmacy_pincode")} value={pincode} onChange={(e) => setPincode(e.target.value)} maxLength={6} />
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Input placeholder={t("pharmacy_pincode")} value={pincode} onChange={(e) => setPincode(e.target.value)} maxLength={6} className="w-32" />
+        <Input placeholder="Search medicine name" value={query} onChange={(e) => setQuery(e.target.value)} className="min-w-[200px]" />
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyStock} onChange={(e) => setOnlyStock(e.target.checked)} /> Only in stock
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          Sort by
+          <select className="border rounded-md h-10 px-2" value={sort} onChange={(e) => setSort(e.target.value as any)}>
+            <option value="stock">Highest stock</option>
+            <option value="name">Name</option>
+          </select>
+        </label>
         <Button onClick={load} disabled={loading}>{t("pharmacy_check")}</Button>
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-3">
-        {data?.items.map((m, i) => (
+        {data &&
+          [...data.items]
+            .filter((m) => (query ? m.name.toLowerCase().includes(query.toLowerCase()) : true))
+            .filter((m) => (onlyStock ? m.stock > 0 : true))
+            .sort((a, b) => (sort === "stock" ? b.stock - a.stock : a.name.localeCompare(b.name)))
+            .map((m, i) => (
           <Card key={m.name + i} className="">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center justify-between">
                 <span>{m.name}</span>
-                <Badge variant={m.stock > 0 ? "default" : "secondary"}>{m.stock > 0 ? `${m.stock} in stock` : "Out of stock"}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={m.stock > 0 ? "default" : "secondary"}>{m.stock > 0 ? `${m.stock} in stock` : "Out of stock"}</Badge>
+                  <button
+                    className={`text-xs underline ${watch.includes(m.name) ? 'text-accent' : ''}`}
+                    onClick={() => {
+                      const next = watch.includes(m.name) ? watch.filter((x) => x !== m.name) : [...watch, m.name];
+                      setWatch(next);
+                      localStorage.setItem("watchlist", JSON.stringify(next));
+                    }}
+                  >{watch.includes(m.name) ? 'Watching' : 'Watch'}</button>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground flex items-center justify-between">

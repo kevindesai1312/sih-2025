@@ -3,6 +3,7 @@ import { Globe, Menu } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/lib/auth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -29,10 +30,12 @@ function Header() {
         <nav className="hidden md:flex items-center gap-6 text-sm">
           <a href="#features" className="hover:text-primary transition-colors">{t("nav_features")}</a>
           <a href="#architecture" className="hover:text-primary transition-colors">{t("nav_architecture")}</a>
+          <a href="/awareness" className="hover:text-primary transition-colors">Awareness</a>
           <a href="#about" className="hover:text-primary transition-colors">About</a>
         </nav>
         <div className="flex items-center gap-2">
           <LanguageSwitcher />
+          <AuthButtons />
           <Button variant="default" asChild>
             <a href="#symptom">{t("cta_assess")}</a>
           </Button>
@@ -46,11 +49,30 @@ function Header() {
           <div className="container py-3 space-y-3">
             <a href="#features" className="block" onClick={() => setOpen(false)}>{t("nav_features")}</a>
             <a href="#architecture" className="block" onClick={() => setOpen(false)}>{t("nav_architecture")}</a>
+            <a href="/awareness" className="block" onClick={() => setOpen(false)}>Awareness</a>
             <a href="#about" className="block" onClick={() => setOpen(false)}>About</a>
+            <a href="/auth" className="block" onClick={() => setOpen(false)}>Login / Sign up</a>
           </div>
         </div>
       )}
     </header>
+  );
+}
+
+function AuthButtons() {
+  const { user, logout } = useAuth();
+  if (user) {
+    return (
+      <div className="flex items-center gap-2 text-sm">
+        <span className="text-muted-foreground hidden sm:inline">Hi, {user.name}</span>
+        <Button variant="outline" onClick={logout}>Logout</Button>
+      </div>
+    );
+  }
+  return (
+    <Button asChild variant="outline">
+      <a href="/auth">Login / Sign up</a>
+    </Button>
   );
 }
 
