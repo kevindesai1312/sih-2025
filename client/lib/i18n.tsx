@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 export type Lang = "en" | "pa" | "hi";
 
@@ -71,10 +71,10 @@ const dictionaries: Record<Lang, Dictionary> = {
     nav_architecture: "ਆਰਕੀਟੈਕਚਰ",
     nav_outcomes: "ਪਰਿਣਾਮ",
     hero_title: "ਬਹੁਭਾਸ਼ੀ ਟੈਲੀਮੈਡੀਸਿਨ, ਆਫ਼ਲਾਈਨ ਰਿਕਾਰਡ ਅਤੇ ਦਵਾਈਆਂ ਦੀ ਤਾਜ਼ਾ ਉਪਲਬਧਤਾ",
-    hero_sub: "ਘੱਟ ਇੰਟਰਨੈੱਟ ਲਈ ਤਿਆਰ। ਪੰਜਾਬ ਦੇ ਪਿੰਡਾਂ ਵਿੱਚ ���ੈਲਣਯੋਗ।",
+    hero_sub: "ਘੱਟ ਇੰਟਰਨੈੱਟ ਲਈ ਤਿਆਰ। ਪੰਜਾਬ ਦੇ ਪਿੰਡਾਂ ਵਿੱਚ ਫੈਲਣਯੋਗ।",
     cta_assess: "ਲੱਛਣ ਜਾਂਚੋ",
     cta_records: "ਰਿਕਾਰਡ ਸੰਭਾਲੋ",
-    stats_connectivity: "ਪੰਜਾਬ ਦੇ ਪਿੰਡਾਂ ਵਿੱਚ ਕੇਵਲ 31% ਕੋਲ ਇੰਟਰਨੈੱਟ ਹੈ",
+    stats_connectivity: "ਪੰਜਾਬ ਦੇ ਪਿ��ਡਾਂ ਵਿੱਚ ਕੇਵਲ 31% ਕੋਲ ਇੰਟਰਨੈੱਟ ਹੈ",
     stats_growth: "ਟੈਲੀਮੈਡੀਸਿਨ ਅਪਨਾਵਾ 31% CAGR ਨਾਲ ਵੱਧ ਰਿਹਾ ਹੈ (2020–2025)",
     features_title: "ਮੁੱਖ ਸਮਰੱਥਾਵਾਂ",
     f1_title: "ਬਹੁਭਾਸ਼ੀ ਅਨੁਭਵ",
@@ -87,7 +87,7 @@ const dictionaries: Record<Lang, Dictionary> = {
     f4_desc: "ਡਿਵਾਈਸ ‘ਤੇ ਨਿਯਮ; ਲੋੜ ਤੇ ਸਰਵਰ।",
     stakeholders_title: "ਹਿੱਸੇਦਾਰ / ਲਾਭਪਾਤਰੀ",
     architecture_title: "ਟੈਕਨਾਲੋਜੀ ਅਤੇ ਆਰਕੀਟੈਕਚਰ",
-    outcomes_title: "���ਮੀਦ ਕੀਤੇ ਪਰਿਣਾਮ",
+    outcomes_title: "ਉਮੀਦ ਕੀਤੇ ਪਰਿਣਾਮ",
     impact_title: "ਅਸਰ ਅਤੇ ਕਿਉਂ",
     scalability_title: "ਸਕੇਲੈਬਿਲਟੀ ਅਤੇ ਨਵੀਨਤਾ",
     problem_title: "ਸਮੱਸਿਆ",
@@ -127,8 +127,8 @@ const dictionaries: Record<Lang, Dictionary> = {
     nav_stakeholders: "हितधारक",
     nav_architecture: "आर्किटेक्चर",
     nav_outcomes: "परिणाम",
-    hero_title: "बहुभाषी टेलीमे���िसिन, ऑफ़लाइन रिकॉर्ड और दवा उपलब्धता",
-    hero_sub: "कम इंटरनेट के लिए अनुकूलित। पंजाब के ग्रामीण क्षेत्रों में स्केलेबल।",
+    hero_title: "बहुभाषी टेलीमेडिसिन, ऑफ़लाइन रिकॉर्ड और दवा उपलब्धता",
+    hero_sub: "कम इंटरनेट के लिए अनुकूलित। ���ंजाब के ग्रामीण क्षेत्रों में स्केलेबल।",
     cta_assess: "लक्षण जाँचें",
     cta_records: "रिकॉर्ड सहेजें",
     stats_connectivity: "पंजाब के ग्रामीण इलाकों में केवल 31% के पास इंटरनेट है",
