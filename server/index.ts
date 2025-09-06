@@ -18,6 +18,7 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+  app.get("/api/medicines", (await import("./routes/medicines")).handleMedicines);
 
   return app;
 }

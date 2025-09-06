@@ -10,3 +10,29 @@
 export interface DemoResponse {
   message: string;
 }
+
+export interface MedicineAvailability {
+  name: string;
+  stock: number;
+  pharmacy: string;
+  pincode: string;
+}
+
+export interface MedicinesResponse {
+  updatedAt: string; // ISO
+  items: MedicineAvailability[];
+}
+
+export interface SymptomCheckInput {
+  age: number;
+  symptoms: string[];
+  notes?: string;
+}
+
+export type TriageLevel = "self_care" | "pharmacist" | "doctor" | "urgent";
+
+export interface SymptomCheckResult {
+  level: TriageLevel;
+  advice: string;
+  redFlags: string[];
+}
