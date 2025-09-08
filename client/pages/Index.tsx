@@ -7,12 +7,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   DemoResponse,
   MedicinesResponse,
-  SymptomCheckResult,
-  SymptomCheckInput,
+  AdvancedSymptomCheckResult,
+  AdvancedSymptomCheckInput,
 } from "@shared/api";
 import {
   Activity,
@@ -26,6 +30,10 @@ import {
   Stethoscope,
   Video,
   VideoOff,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  TrendingUp,
 } from "lucide-react";
 
 export default function Index() {
@@ -477,40 +485,134 @@ function Consultation() {
 
 function SymptomChecker() {
   const { t } = useI18n();
-  const [input, setInput] = useState<SymptomCheckInput>({
+  const [input, setInput] = useState<AdvancedSymptomCheckInput>({
     age: 30,
     symptoms: [],
     notes: "",
+    gender: "other",
+    duration: "",
+    severity: 5,
+    medicalHistory: [],
+    useAI: false,
   });
-  const [result, setResult] = useState<SymptomCheckResult | null>(null);
+  const [result, setResult] = useState<AdvancedSymptomCheckResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [availableSymptoms, setAvailableSymptoms] = useState<any[]>([]);
 
-  const options = [
-    { key: "fever", label: "Fever" },
-    { key: "cough", label: "Cough" },
-    { key: "breath", label: "Breathlessness" },
-    { key: "chest", label: "Chest pain" },
-    { key: "injury", label: "Injury" },
-    { key: "diarrhea", label: "Diarrhea" },
-    { key: "rash", label: "Rash" },
-    { key: "vomit", label: "Vomiting" },
+  // Load available symptoms from server
+  useEffect(() => {
+    const loadSymptoms = async () => {
+      try {
+        const response = await fetch('/api/symptoms/list');
+        const data = await response.json();
+        setAvailableSymptoms(data.symptoms || []);
+      } catch (error) {
+        console.error('Failed to load symptoms:', error);
+        // Fallback to basic symptoms
+        setAvailableSymptoms([
+          { key: "fever", label: "Fever", severity: "moderate", category: "general" },
+          { key: "cough", label: "Cough", severity: "mild", category: "respiratory" },
+          { key: "breath", label: "Difficulty breathing", severity: "high", category: "respiratory" },
+          { key: "chest_pain", label: "Chest pain", severity: "high", category: "cardiovascular" },
+          { key: "headache", label: "Headache", severity: "mild", category: "neurological" },
+          { key: "nausea", label: "Nausea", severity: "mild", category: "gastrointestinal" },
+          { key: "vomiting", label: "Vomiting", severity: "moderate", category: "gastrointestinal" },
+          { key: "diarrhea", label: "Diarrhea", severity: "moderate", category: "gastrointestinal" },
+        ]);
+      }
+    };
+    loadSymptoms();
+  }, []);
+
+  // Group symptoms by category
+  const symptomsByCategory = useMemo(() => {
+    const grouped: Record<string, typeof availableSymptoms> = {};
+    availableSymptoms.forEach(symptom => {
+      const category = symptom.category || 'general';
+      if (!grouped[category]) {
+        grouped[category] = [];
+      }
+      grouped[category].push(symptom);
+    });
+    return grouped;
+  }, [availableSymptoms]);
+
+  const medicalHistoryOptions = [
+    { key: "diabetes", label: "Diabetes" },
+    { key: "hypertension", label: "High Blood Pressure" },
+    { key: "heart_disease", label: "Heart Disease" },
+    { key: "asthma", label: "Asthma" },
+    { key: "allergies", label: "Allergies" },
+    { key: "cancer", label: "Cancer" },
+    { key: "kidney_disease", label: "Kidney Disease" },
+    { key: "liver_disease", label: "Liver Disease" },
   ];
 
-  function check() {
-    const r = simpleTriage(input);
-    setResult(r);
+  async function checkSymptoms() {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/symptoms/check', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(input),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to analyze symptoms');
+      }
+      
+      const data = await response.json();
+      setResult(data);
+    } catch (error) {
+      console.error('Symptom check failed:', error);
+      // Fallback to basic triage
+      setResult({
+        level: "doctor",
+        advice: "Unable to connect to AI service. Please consult a healthcare provider.",
+        redFlags: ["System error"],
+        confidence: 0.5,
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
+  const getTriageLevelColor = (level: string) => {
+    switch (level) {
+      case "emergency": return "bg-red-500 text-white";
+      case "urgent": return "bg-orange-500 text-white";
+      case "doctor": return "bg-yellow-500 text-black";
+      case "pharmacist": return "bg-blue-500 text-white";
+      case "self_care": return "bg-green-500 text-white";
+      default: return "bg-gray-500 text-white";
+    }
+  };
+
+  const getTriageLevelIcon = (level: string) => {
+    switch (level) {
+      case "emergency":
+      case "urgent": return <AlertTriangle className="h-4 w-4" />;
+      case "doctor": return <Stethoscope className="h-4 w-4" />;
+      case "pharmacist": return <Activity className="h-4 w-4" />;
+      case "self_care": return <CheckCircle className="h-4 w-4" />;
+      default: return <Brain className="h-4 w-4" />;
+    }
+  };
+
   return (
-    <Card id="symptom">
+    <Card id="symptom" className="h-fit">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Brain className="h-5 w-5 text-primary" /> {t("symptom_title")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
+      <CardContent className="space-y-6">
+        {/* Basic Information */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-sm text-muted-foreground">Age</label>
+            <Label className="text-sm font-medium">Age</Label>
             <Input
               type="number"
               value={input.age}
@@ -521,111 +623,271 @@ function SymptomChecker() {
               }
             />
           </div>
-        </div>
-        <div>
-          <div className="text-sm font-medium mb-2">
-            {t("symptom_symptoms")}
+          <div>
+            <Label className="text-sm font-medium">{t("symptom_gender")}</Label>
+            <Select value={input.gender} onValueChange={(value) => setInput(s => ({ ...s, gender: value as any }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">{t("symptom_gender_male")}</SelectItem>
+                <SelectItem value="female">{t("symptom_gender_female")}</SelectItem>
+                <SelectItem value="other">{t("symptom_gender_other")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          <div>
+            <Label className="text-sm font-medium">{t("symptom_duration")}</Label>
+            <Select value={input.duration} onValueChange={(value) => setInput(s => ({ ...s, duration: value }))}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hours">{t("symptom_duration_hours")}</SelectItem>
+                <SelectItem value="days">{t("symptom_duration_days")}</SelectItem>
+                <SelectItem value="week">{t("symptom_duration_week")}</SelectItem>
+                <SelectItem value="weeks">{t("symptom_duration_weeks")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Severity */}
+        <div>
+          <Label className="text-sm font-medium">{t("symptom_severity")}</Label>
+          <div className="flex items-center space-x-4 mt-2">
+            <Input
+              type="range"
+              min="1"
+              max="10"
+              value={input.severity}
+              onChange={(e) => setInput(s => ({ ...s, severity: Number(e.target.value) }))}
+              className="flex-1"
+            />
+            <span className="text-sm font-medium w-8">{input.severity}</span>
+          </div>
+        </div>
+
+        {/* Symptoms by Category */}
+        <div>
+          <Label className="text-sm font-medium mb-3 block">{t("symptom_symptoms")}</Label>
+          <div className="space-y-4">
+            {Object.entries(symptomsByCategory).map(([category, symptoms]) => (
+              <div key={category}>
+                <h4 className="text-sm font-medium text-muted-foreground capitalize mb-2">{category}</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {symptoms.map((symptom) => (
+                    <label
+                      key={symptom.key}
+                      className="flex items-center gap-2 rounded-md border p-2 hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={input.symptoms.includes(symptom.key)}
+                        onCheckedChange={(checked) =>
+                          setInput((s) => ({
+                            ...s,
+                            symptoms: checked
+                              ? [...s.symptoms, symptom.key]
+                              : s.symptoms.filter((k) => k !== symptom.key),
+                          }))
+                        }
+                      />
+                      <span className="text-sm">{symptom.label}</span>
+                      {symptom.severity === 'high' && (
+                        <AlertTriangle className="h-3 w-3 text-orange-500" />
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Medical History */}
+        <div>
+          <Label className="text-sm font-medium mb-3 block">{t("symptom_medical_history")}</Label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {options.map((opt) => (
+            {medicalHistoryOptions.map((condition) => (
               <label
-                key={opt.key}
-                className="flex items-center gap-2 rounded-md border p-2"
+                key={condition.key}
+                className="flex items-center gap-2 rounded-md border p-2 hover:bg-accent cursor-pointer"
               >
                 <Checkbox
-                  checked={input.symptoms.includes(opt.key)}
-                  onCheckedChange={(v) =>
+                  checked={input.medicalHistory?.includes(condition.key) || false}
+                  onCheckedChange={(checked) =>
                     setInput((s) => ({
                       ...s,
-                      symptoms: v
-                        ? [...s.symptoms, opt.key]
-                        : s.symptoms.filter((k) => k !== opt.key),
+                      medicalHistory: checked
+                        ? [...(s.medicalHistory || []), condition.key]
+                        : (s.medicalHistory || []).filter((k) => k !== condition.key),
                     }))
                   }
                 />
-                <span className="text-sm">{opt.label}</span>
+                <span className="text-sm">{condition.label}</span>
               </label>
             ))}
           </div>
         </div>
+
+        {/* Additional Notes */}
         <div>
-          <label className="text-sm text-muted-foreground">
-            {t("symptom_other")}
-          </label>
+          <Label className="text-sm font-medium">{t("symptom_other")}</Label>
           <Textarea
             rows={3}
             value={input.notes}
             onChange={(e) => setInput((s) => ({ ...s, notes: e.target.value }))}
+            placeholder="Any additional symptoms or details..."
           />
         </div>
-        <div className="flex justify-end">
-          <Button onClick={check}>{t("symptom_check")}</Button>
+
+        {/* AI Analysis Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="ai-analysis"
+              checked={input.useAI}
+              onCheckedChange={(checked) => setInput(s => ({ ...s, useAI: checked }))}
+            />
+            <Label htmlFor="ai-analysis" className="text-sm font-medium">
+              {t("symptom_advanced")}
+            </Label>
+          </div>
+          <Button onClick={checkSymptoms} disabled={loading || input.symptoms.length === 0}>
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                Analyzing...
+              </>
+            ) : (
+              t("symptom_check")
+            )}
+          </Button>
         </div>
+
+        {/* Results */}
         {result && (
-          <div className="rounded-md border p-3">
-            <div className="text-sm font-semibold">{t("symptom_result")}:</div>
-            <div className="mt-1 text-sm">
-              <span className="font-medium">Triage:</span> {result.level}
+          <div className="space-y-4 border-t pt-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">{t("symptom_result")}</h3>
+              {result.confidence && (
+                <Badge variant="outline" className="ml-auto">
+                  {t("symptom_confidence")}: {Math.round(result.confidence * 100)}%
+                </Badge>
+              )}
             </div>
-            <div className="mt-1 text-sm">
-              <span className="font-medium">Advice:</span> {result.advice}
+
+            {/* Triage Level */}
+            <div className={`rounded-lg p-3 flex items-center gap-2 ${getTriageLevelColor(result.level)}`}>
+              {getTriageLevelIcon(result.level)}
+              <div>
+                <div className="font-medium capitalize">{result.level.replace('_', ' ')}</div>
+                <div className="text-sm opacity-90">{result.advice}</div>
+              </div>
             </div>
-            {result.redFlags.length > 0 && (
-              <div className="mt-1 text-sm text-destructive">
-                <span className="font-medium">Red flags:</span>{" "}
-                {result.redFlags.join(", ")}
+
+            {/* Follow-up */}
+            {result.followUpInDays !== undefined && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                {t("symptom_follow_up")}: {result.followUpInDays === 0 ? 'Immediately' : `${result.followUpInDays} days`}
               </div>
             )}
+
+            {/* Red Flags */}
+            {result.redFlags && result.redFlags.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3">
+                <div className="flex items-center gap-2 text-red-800 font-medium mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Warning Signs
+                </div>
+                <ul className="text-sm text-red-700 space-y-1">
+                  {result.redFlags.map((flag, index) => (
+                    <li key={index}>• {flag}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Possible Conditions */}
+            {result.possibleConditions && result.possibleConditions.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">{t("symptom_possible_conditions")}</h4>
+                <ul className="text-sm space-y-1">
+                  {result.possibleConditions.map((condition, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <TrendingUp className="h-3 w-3 text-blue-500" />
+                      {condition}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {result.recommendations && result.recommendations.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">{t("symptom_recommendations")}</h4>
+                <ul className="text-sm space-y-1">
+                  {result.recommendations.map((rec, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Critical Signs */}
+            {result.criticalSigns && result.criticalSigns.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2 text-orange-600">{t("symptom_critical_signs")}</h4>
+                <ul className="text-sm space-y-1">
+                  {result.criticalSigns.map((sign, index) => (
+                    <li key={index} className="flex items-center gap-2 text-orange-700">
+                      <AlertTriangle className="h-3 w-3" />
+                      {sign}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Preventive Measures */}
+            {result.preventiveMeasures && result.preventiveMeasures.length > 0 && (
+              <div>
+                <h4 className="font-medium mb-2">{t("symptom_preventive_measures")}</h4>
+                <ul className="text-sm space-y-1">
+                  {result.preventiveMeasures.map((measure, index) => (
+                    <li key={index} className="flex items-center gap-2">
+                      <CheckCircle className="h-3 w-3 text-blue-500" />
+                      {measure}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* AI Analysis */}
+            {result.aiAnalysis && (
+              <div>
+                <h4 className="font-medium mb-2">{t("symptom_ai_analysis")}</h4>
+                <div className="text-sm bg-blue-50 border border-blue-200 rounded-md p-3">
+                  {result.aiAnalysis}
+                </div>
+              </div>
+            )}
+
+            <div className="text-xs text-muted-foreground mt-4 p-3 bg-gray-50 rounded-md">
+              ⚠️ This is for informational purposes only and not a substitute for professional medical advice. 
+              In case of emergency, call your local emergency services immediately.
+            </div>
           </div>
         )}
       </CardContent>
     </Card>
   );
-}
-
-function simpleTriage(input: SymptomCheckInput): SymptomCheckResult {
-  const s = new Set(input.symptoms);
-  const redFlags: string[] = [];
-  if (s.has("chest")) redFlags.push("chest pain");
-  if (s.has("breath")) redFlags.push("breathlessness");
-  if (input.age > 65 && (s.has("fever") || s.has("cough")))
-    redFlags.push("age > 65 with fever/cough");
-
-  if (s.has("injury") || (s.has("vomit") && s.has("breath"))) {
-    return {
-      level: "urgent",
-      advice: "Seek emergency care immediately.",
-      redFlags,
-    };
-  }
-  if (s.has("chest") || s.has("breath")) {
-    return {
-      level: "doctor",
-      advice: "Consult a doctor as soon as possible.",
-      redFlags,
-    };
-  }
-  if (s.has("fever") && s.has("cough")) {
-    return {
-      level: "pharmacist",
-      advice:
-        "Consider OTC fever reducers and hydration. If symptoms persist >48h, see a doctor.",
-      redFlags,
-    };
-  }
-  if (s.has("diarrhea") || s.has("rash")) {
-    return {
-      level: "pharmacist",
-      advice:
-        "Oral rehydration solution (ORS) and rest. Monitor for blood in stool or high fever.",
-      redFlags,
-    };
-  }
-  return {
-    level: "self_care",
-    advice: "Rest, fluids, and monitor symptoms.",
-    redFlags,
-  };
 }
 
 function OfflineRecords() {
