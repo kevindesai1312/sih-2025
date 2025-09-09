@@ -18,11 +18,14 @@
     "start": "node dist/server/node-build.mjs",
     "test": "vitest --run",
     "format.fix": "prettier --write .",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "setup:database": "node scripts/setup-database.mjs"
   },
   "dependencies": {
+    "@types/mongoose": "^5.11.97",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
+    "mongoose": "^8.18.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import type { AdvancedSymptomCheckInput, AdvancedSymptomCheckResult, SymptomCheckResult, TriageLevel } from "@shared/api";
+import { SymptomService, SymptomRecordService } from "../services/database";
 
 // RapidAPI Gemini Pro Integration
 const RAPIDAPI_KEY = "a97dced58amsh8f8584c0b9192d3p1691acjsnc2160c315159";
@@ -462,6 +463,20 @@ export const handleSymptomCheck: RequestHandler = async (req, res) => {
       }
     }
 
+    // Save the symptom check record to database
+    try {
+      const metadata = {
+        ipAddress: req.ip || req.connection.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        sessionId: req.get('X-Session-ID') // Optional session tracking
+      };
+      
+      await SymptomRecordService.saveSymptomRecord(input, result, metadata);
+    } catch (dbError) {
+      console.warn('Failed to save symptom record to database:', dbError);
+      // Continue with response even if database save fails
+    }
+
     res.json(result);
   } catch (error) {
     console.error('Symptom check error:', error);
@@ -469,6 +484,28 @@ export const handleSymptomCheck: RequestHandler = async (req, res) => {
   }
 };
 
-export const getSymptomsList: RequestHandler = (req, res) => {
-  res.json({ symptoms: COMPREHENSIVE_SYMPTOMS });
+export const getSymptomsList: RequestHandler = async (req, res) => {
+  try {
+    // Try to get symptoms from database first
+    const dbSymptoms = await SymptomService.getAvailableSymptoms();
+    
+    if (dbSymptoms.length > 0) {
+      // Transform database symptoms to match the expected format
+      const formattedSymptoms = dbSymptoms.map(symptom => ({
+        key: symptom.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
+        label: symptom.name,
+        severity: symptom.severity || 'mild',
+        category: symptom.category
+      }));
+      
+      res.json({ symptoms: formattedSymptoms });
+    } else {
+      // Fallback to static symptoms if database is empty
+      res.json({ symptoms: COMPREHENSIVE_SYMPTOMS });
+    }
+  } catch (error) {
+    console.error('Database error, falling back to static symptoms:', error);
+    // Fallback to static data if database is unavailable
+    res.json({ symptoms: COMPREHENSIVE_SYMPTOMS });
+  }
 };
