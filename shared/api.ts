@@ -58,4 +58,5 @@ export interface AdvancedSymptomCheckResult extends SymptomCheckResult {
   }[];
   criticalSigns?: string[];
   preventiveMeasures?: string[];
+  aiTriageLevel?: TriageLevel;
 }

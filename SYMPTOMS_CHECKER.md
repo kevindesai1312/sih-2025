@@ -25,8 +25,9 @@ The checker now includes 25+ symptoms organized by category:
 
 ### 3. AI-Powered Analysis
 When AI analysis is enabled, the system:
-- Sends patient data to Google's Gemini AI API
-- Receives detailed medical analysis
+- Sends patient data to RapidAPI's Gemini Pro AI endpoint
+- Uses enhanced prompting for structured medical analysis
+- Receives detailed medical assessment with improved parsing
 - Provides differential diagnosis suggestions
 - Offers specific recommendations
 - Identifies critical warning signs
@@ -55,9 +56,11 @@ The results now include:
 ## Technical Implementation
 
 ### API Integration
-- **Google AI API Key**: AIzaSyAaj3wyYkCk-oo1m9TvnbG7bWcn_Yg1J74
-- **Model**: Gemini Pro
+- **RapidAPI Gemini Pro**: Enhanced AI analysis via RapidAPI platform
+- **API Key**: a97dced58amsh8f8584c0b9192d3p1691acjsnc2160c315159
+- **Model**: Gemini Pro via RapidAPI
 - **Endpoint**: `/api/symptoms/check` (POST)
+- **Features**: Structured response parsing, multiple response format support
 - **Fallback**: Basic rule-based triage if AI unavailable
 
 ### Security Features

@@ -1,38 +1,32 @@
 import { RequestHandler } from "express";
 import type { AdvancedSymptomCheckInput, AdvancedSymptomCheckResult, SymptomCheckResult, TriageLevel } from "@shared/api";
 
-// Google AI Integration
-const GOOGLE_AI_API_KEY = "AIzaSyAaj3wyYkCk-oo1m9TvnbG7bWcn_Yg1J74";
-const GOOGLE_AI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+// RapidAPI Gemini Pro Integration
+const RAPIDAPI_KEY = "a97dced58amsh8f8584c0b9192d3p1691acjsnc2160c315159";
+const RAPIDAPI_HOST = "gemini-pro-ai.p.rapidapi.com";
+const RAPIDAPI_ENDPOINT = "https://gemini-pro-ai.p.rapidapi.com/";
 
-interface GoogleAIRequest {
+interface RapidAPIGeminiRequest {
   contents: {
+    role: 'user' | 'model';
     parts: {
       text: string;
     }[];
   }[];
-  generationConfig: {
-    temperature: number;
-    topK: number;
-    topP: number;
-    maxOutputTokens: number;
-  };
-  safetySettings: {
-    category: string;
-    threshold: string;
-  }[];
 }
 
-interface GoogleAIResponse {
-  candidates: {
+interface RapidAPIGeminiResponse {
+  candidates?: {
     content: {
       parts: {
         text: string;
       }[];
     };
     finishReason: string;
-    safetyRatings: any[];
   }[];
+  text?: string;
+  response?: string;
+  message?: string;
 }
 
 // Enhanced symptoms database
@@ -181,104 +175,254 @@ Patient Information:
 - Additional notes: ${input.notes || 'none'}
 - Medical history: ${input.medicalHistory?.join(', ') || 'none'}
 
-Please provide:
-1. Top 3 possible conditions with probability percentages
-2. Critical warning signs to watch for
-3. Specific recommendations
-4. Urgency level (self_care, pharmacist, doctor, urgent, emergency)
-5. Preventive measures
+Please provide a structured response with:
+1. DIAGNOSIS: Top 3 possible conditions with probability percentages
+2. URGENCY: Urgency level (self_care, pharmacist, doctor, urgent, emergency)
+3. CRITICAL_SIGNS: Warning signs to watch for
+4. RECOMMENDATIONS: Specific treatment recommendations
+5. PREVENTION: Preventive measures
 
-Format your response as structured text that can be parsed. Be conservative in your assessment and always err on the side of caution. This is for triage purposes only and not a substitute for professional medical diagnosis.`;
+Format as clear sections. Be conservative and err on the side of caution. This is for triage purposes only.`;
 
-    const requestBody: GoogleAIRequest = {
-      contents: [{
-        parts: [{
-          text: prompt
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.3,
-        topK: 40,
-        topP: 0.8,
-        maxOutputTokens: 1024
-      },
-      safetySettings: [
+    const requestBody: RapidAPIGeminiRequest = {
+      contents: [
         {
-          category: "HARM_CATEGORY_HARASSMENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-          category: "HARM_CATEGORY_HATE_SPEECH",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
-        },
-        {
-          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-          threshold: "BLOCK_MEDIUM_AND_ABOVE"
+          role: 'user',
+          parts: [
+            {
+              text: prompt
+            }
+          ]
         }
       ]
     };
 
-    const response = await fetch(`${GOOGLE_AI_ENDPOINT}?key=${GOOGLE_AI_API_KEY}`, {
+    const response = await fetch(RAPIDAPI_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'x-rapidapi-key': RAPIDAPI_KEY,
+        'x-rapidapi-host': RAPIDAPI_HOST,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
-      throw new Error(`Google AI API error: ${response.status}`);
+      throw new Error(`RapidAPI Gemini error: ${response.status} - ${response.statusText}`);
     }
 
-    const data: GoogleAIResponse = await response.json();
-    const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const data: RapidAPIGeminiResponse = await response.json();
+    
+    // Handle different response formats from RapidAPI
+    let aiText = '';
+    if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      aiText = data.candidates[0].content.parts[0]?.text || '';
+    } else if (data.text) {
+      aiText = data.text;
+    } else if (data.response) {
+      aiText = data.response;
+    } else if (data.message) {
+      aiText = data.message;
+    }
 
-    // Parse AI response (basic parsing - could be enhanced)
+    if (!aiText) {
+      throw new Error('No valid response text received from AI');
+    }
+
+    // Enhanced parsing of AI response
+    const parsedResult = parseStructuredAIResponse(aiText);
+    
+    // Extract urgency level from AI response and adjust triage if needed
+    const urgencyMatch = aiText.match(/\*\*(?:URGENCY|urgency):\s*([^*\n]+)/i);
+    let aiTriageLevel: TriageLevel | undefined;
+    if (urgencyMatch) {
+      const urgencyText = urgencyMatch[1].toLowerCase().trim();
+      if (urgencyText.includes('emergency')) aiTriageLevel = 'emergency';
+      else if (urgencyText.includes('urgent')) aiTriageLevel = 'urgent';
+      else if (urgencyText.includes('doctor')) aiTriageLevel = 'doctor';
+      else if (urgencyText.includes('pharmacist')) aiTriageLevel = 'pharmacist';
+      else if (urgencyText.includes('self')) aiTriageLevel = 'self_care';
+    }
+
     return {
       aiAnalysis: aiText,
       confidence: 0.9,
-      // Could parse specific sections from AI response here
-      possibleConditions: extractConditions(aiText),
-      criticalSigns: extractCriticalSigns(aiText),
-      preventiveMeasures: extractPreventiveMeasures(aiText)
+      possibleConditions: parsedResult.conditions,
+      criticalSigns: parsedResult.criticalSigns,
+      preventiveMeasures: parsedResult.preventiveMeasures,
+      recommendations: parsedResult.recommendations,
+      aiTriageLevel // Add AI-suggested triage level
     };
 
   } catch (error) {
     console.error('AI Analysis failed:', error);
     return {
-      aiAnalysis: 'AI analysis unavailable. Using basic triage only.',
+      aiAnalysis: `AI analysis unavailable: ${error instanceof Error ? error.message : 'Unknown error'}. Using basic triage only.`,
       confidence: 0.6
     };
   }
 }
 
-// Helper functions to parse AI response
+// Enhanced parsing function for structured AI responses
+function parseStructuredAIResponse(text: string): {
+  conditions: string[];
+  criticalSigns: string[];
+  preventiveMeasures: string[];
+  recommendations: string[];
+} {
+  const result = {
+    conditions: [] as string[],
+    criticalSigns: [] as string[],
+    preventiveMeasures: [] as string[],
+    recommendations: [] as string[]
+  };
+
+  // Parse DIAGNOSIS section - look for numbered conditions
+  const diagnosisMatch = text.match(/\*\*DIAGNOSIS[^:]*:[^*]*\*\*([^*]+(?:\*\*[^*]*\*\*[^*]*)*)/i);
+  if (diagnosisMatch) {
+    const conditions = diagnosisMatch[1]
+      .match(/\d+\. \*\*([^*]+)\*\*[^\n]*/g);
+    if (conditions) {
+      result.conditions = conditions.map(c => 
+        c.replace(/\d+\. \*\*([^*]+)\*\*.*/, '$1').trim()
+      ).filter(c => c.length > 0);
+    }
+  }
+
+  // Parse CRITICAL_SIGNS section - look for bullet points
+  const criticalMatch = text.match(/\*\*CRITICAL_SIGNS[^:]*:[^*]*\*\*([^*]+(?:\*[^*]*)*)/i);
+  if (criticalMatch) {
+    const signs = criticalMatch[1]
+      .split('\n')
+      .filter(line => line.trim().startsWith('*'))
+      .map(line => line.replace(/^\*\s*/, '').trim())
+      .filter(sign => sign.length > 0 && !sign.includes('**'));
+    result.criticalSigns = signs;
+  }
+
+  // Parse RECOMMENDATIONS section - look for bullet points
+  const recommendMatch = text.match(/\*\*RECOMMENDATIONS:[^*]*\*\*([^*]+(?:\*[^*]*)*)/i);
+  if (recommendMatch) {
+    const recommendations = recommendMatch[1]
+      .split('\n')
+      .filter(line => line.trim().startsWith('*'))
+      .map(line => line.replace(/^\*\s*/, '').replace(/\*\*([^*]+)\*\*:?/g, '$1:').trim())
+      .filter(rec => rec.length > 0 && !rec.includes('**PREVENTION'));
+    result.recommendations = recommendations;
+  }
+
+  // Parse PREVENTION section - look for bullet points
+  const preventMatch = text.match(/\*\*PREVENTION:[^*]*\*\*([^*]+(?:\*[^*]*)*)/i);
+  if (preventMatch) {
+    const measures = preventMatch[1]
+      .split('\n')
+      .filter(line => line.trim().startsWith('*'))
+      .map(line => line.replace(/^\*\s*/, '').replace(/\*\*([^*]+)\*\*:?/g, '$1:').trim())
+      .filter(measure => measure.length > 0 && !measure.includes('Disclaimer'));
+    result.preventiveMeasures = measures;
+  }
+
+  // Fallback to original parsing if structured parsing fails
+  if (result.conditions.length === 0) {
+    result.conditions = extractConditions(text);
+  }
+  if (result.criticalSigns.length === 0) {
+    result.criticalSigns = extractCriticalSigns(text);
+  }
+  if (result.preventiveMeasures.length === 0) {
+    result.preventiveMeasures = extractPreventiveMeasures(text);
+  }
+  if (result.recommendations.length === 0) {
+    result.recommendations = extractRecommendations(text);
+  }
+
+  return result;
+}
+
+// Helper functions to parse AI response (enhanced for better extraction)
 function extractConditions(text: string): string[] {
-  const matches = text.match(/(?:possible conditions?|diagnosis|differential)[:\s]*([^.]*)/i);
-  if (matches) {
-    return matches[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+  const patterns = [
+    /(?:possible conditions?|diagnosis|differential)[:\s]*([^.]*)/i,
+    /(?:may have|could be|likely)[:\s]*([^.]*)/i,
+    /(?:\d+\.|-)\s*([^\n,]*(?:infection|syndrome|disease|condition|disorder)[^\n,]*)/gi
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches) {
+      if (pattern.global) {
+        return Array.from(text.matchAll(pattern)).map(m => m[1].trim()).filter(c => c.length > 0);
+      } else {
+        return matches[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+      }
+    }
   }
   return [];
 }
 
 function extractCriticalSigns(text: string): string[] {
-  const matches = text.match(/(?:warning signs?|critical|red flags?)[:\s]*([^.]*)/i);
-  if (matches) {
-    return matches[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+  const patterns = [
+    /(?:warning signs?|critical|red flags?|danger signs?)[:\s]*([^.]*)/i,
+    /(?:seek.*(?:immediate|emergency|urgent).*(?:if|when))[:\s]*([^.]*)/i,
+    /(?:call.*(?:doctor|emergency|911).*if)[:\s]*([^.]*)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches) {
+      return matches[1].split(/[,\n]|[-•]\s*/).map(c => c.trim()).filter(c => c.length > 0);
+    }
   }
   return [];
 }
 
 function extractPreventiveMeasures(text: string): string[] {
-  const matches = text.match(/(?:preventive|prevention|avoid)[:\s]*([^.]*)/i);
-  if (matches) {
-    return matches[1].split(',').map(c => c.trim()).filter(c => c.length > 0);
+  const patterns = [
+    /(?:preventive|prevention|avoid|prevent)[:\s]*([^.]*)/i,
+    /(?:to prevent|to avoid|to reduce risk)[:\s]*([^.]*)/i,
+    /(?:lifestyle changes?|recommendations?)[:\s]*([^.]*)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches) {
+      return matches[1].split(/[,\n]|[-•]\s*/).map(c => c.trim()).filter(c => c.length > 0);
+    }
   }
   return [];
+}
+
+function extractRecommendations(text: string): string[] {
+  const patterns = [
+    /(?:recommendations?|treatment|advice)[:\s]*([^.]*)/i,
+    /(?:you should|it is recommended)[:\s]*([^.]*)/i,
+    /(?:suggested|advised)[:\s]*([^.]*)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches) {
+      return matches[1].split(/[,\n]|[-•]\s*/).map(c => c.trim()).filter(c => c.length > 0);
+    }
+  }
+  return [];
+}
+
+// Helper function to get advice for triage levels
+function getAdviceForTriageLevel(level: TriageLevel): string {
+  switch (level) {
+    case 'emergency':
+      return 'Seek immediate emergency care. Call emergency services.';
+    case 'urgent':
+      return 'Seek urgent medical care within hours.';
+    case 'doctor':
+      return 'Consult a healthcare provider within 1-2 days.';
+    case 'pharmacist':
+      return 'Consult a pharmacist for over-the-counter treatment options.';
+    case 'self_care':
+    default:
+      return 'Monitor symptoms and rest. Consider self-care measures.';
+  }
 }
 
 export const handleSymptomCheck: RequestHandler = async (req, res) => {
@@ -297,6 +441,25 @@ export const handleSymptomCheck: RequestHandler = async (req, res) => {
     if (input.useAI) {
       const aiResult = await getAIAnalysis(input);
       result = { ...result, ...aiResult };
+      
+      // Use AI-suggested triage level if it's more severe than basic triage
+      if (aiResult.aiTriageLevel) {
+        const triageSeverity = {
+          'self_care': 1,
+          'pharmacist': 2,
+          'doctor': 3,
+          'urgent': 4,
+          'emergency': 5
+        };
+        
+        const basicSeverity = triageSeverity[result.level];
+        const aiSeverity = triageSeverity[aiResult.aiTriageLevel];
+        
+        if (aiSeverity > basicSeverity) {
+          result.level = aiResult.aiTriageLevel;
+          result.advice = getAdviceForTriageLevel(aiResult.aiTriageLevel);
+        }
+      }
     }
 
     res.json(result);
