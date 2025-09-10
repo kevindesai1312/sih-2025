@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { usePatientAuth } from "@/lib/patient-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -48,7 +48,7 @@ interface Appointment {
 }
 
 export default function PatientAppointments() {
-  const { patient, token } = usePatientAuth();
+  const { user } = useUnifiedAuth();
   const nav = useNavigate();
   const { toast } = useToast();
   
@@ -57,19 +57,19 @@ export default function PatientAppointments() {
   const [cancellingId, setCancellingId] = useState<string>("");
 
   useEffect(() => {
-    if (!patient || !token) {
-      nav("/auth");
+    if (!user || user.role !== "patient") {
+      nav("/login");
       return;
     }
     fetchAppointments();
-  }, [patient, token, nav]);
+  }, [user, nav]);
 
   const fetchAppointments = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/patient/appointments', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -101,7 +101,7 @@ export default function PatientAppointments() {
       const response = await fetch(`/api/patient/appointments/${appointmentId}/cancel`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -204,7 +204,7 @@ export default function PatientAppointments() {
   const upcomingAppointments = sortedAppointments.filter(isUpcoming);
   const pastAppointments = sortedAppointments.filter(apt => !isUpcoming(apt));
 
-  if (!patient) {
+  if (!user || user.role !== "patient") {
     return null;
   }
 

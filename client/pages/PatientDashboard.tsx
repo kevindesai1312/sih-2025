@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { usePatientAuth } from "@/lib/patient-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { 
   Heart, 
@@ -31,25 +31,25 @@ interface Appointment {
 }
 
 export default function PatientDashboard() {
-  const { patient, logout, token } = usePatientAuth();
+  const { user, logout } = useUnifiedAuth();
   const nav = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!patient || !token) {
-      nav("/auth");
+    if (!user || user.role !== "patient") {
+      nav("/login");
       return;
     }
     fetchAppointments();
-  }, [patient, token, nav]);
+  }, [user, nav]);
 
   const fetchAppointments = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/patient/appointments', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}` // Using user ID as token for demo
         }
       });
 
@@ -66,7 +66,7 @@ export default function PatientDashboard() {
 
   const handleLogout = () => {
     logout();
-    nav("/auth");
+    nav("/login");
   };
 
   const getStatusBadge = (status: string) => {
@@ -86,7 +86,7 @@ export default function PatientDashboard() {
     apt.status === 'scheduled' && new Date(apt.appointmentDate) >= new Date()
   ).slice(0, 3);
 
-  if (!patient) {
+  if (!user || user.role !== "patient") {
     return null;
   }
 
@@ -100,7 +100,7 @@ export default function PatientDashboard() {
               <Heart className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-xl font-semibold">Patient Dashboard</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, {patient.name}</p>
+                <p className="text-sm text-muted-foreground">Welcome back, {user.name}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout}>
@@ -124,24 +124,24 @@ export default function PatientDashboard() {
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{patient.name}</span>
+                <span className="text-sm font-medium">{user.name}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{patient.email}</span>
+                <span className="text-sm">{user.email}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{patient.phone}</span>
+                <span className="text-sm">{user.profile?.phone || 'Not provided'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm truncate">{patient.address}</span>
+                <span className="text-sm truncate">{user.profile?.address || 'Not provided'}</span>
               </div>
-              {patient.bloodGroup && (
+              {user.profile?.bloodGroup && (
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                  <Badge variant="secondary">{patient.bloodGroup}</Badge>
+                  <Badge variant="secondary">{user.profile.bloodGroup}</Badge>
                 </div>
               )}
             </CardContent>
@@ -272,18 +272,18 @@ export default function PatientDashboard() {
         </div>
 
         {/* Health Summary */}
-        {(patient.medicalHistory?.length || patient.allergies?.length || patient.currentMedications?.length) && (
+        {(user.profile?.medicalHistory?.length || user.profile?.allergies?.length || user.profile?.currentMedications?.length) && (
           <div className="mt-6">
             <Card>
               <CardHeader>
                 <CardTitle>Health Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {patient.medicalHistory && patient.medicalHistory.length > 0 && (
+                {user.profile?.medicalHistory && user.profile.medicalHistory.length > 0 && (
                   <div>
                     <h4 className="text-sm font-medium mb-2">Medical History</h4>
                     <div className="flex flex-wrap gap-1">
-                      {patient.medicalHistory.map((condition, index) => (
+                      {user.profile.medicalHistory.map((condition, index) => (
                         <Badge key={index} variant="secondary" className="text-xs">
                           {condition}
                         </Badge>
@@ -292,11 +292,11 @@ export default function PatientDashboard() {
                   </div>
                 )}
                 
-                {patient.allergies && patient.allergies.length > 0 && (
+                {user.profile?.allergies && user.profile.allergies.length > 0 && (
                   <div>
                     <h4 className="text-sm font-medium mb-2">Allergies</h4>
                     <div className="flex flex-wrap gap-1">
-                      {patient.allergies.map((allergy, index) => (
+                      {user.profile.allergies.map((allergy, index) => (
                         <Badge key={index} variant="destructive" className="text-xs">
                           {allergy}
                         </Badge>
@@ -305,11 +305,11 @@ export default function PatientDashboard() {
                   </div>
                 )}
                 
-                {patient.currentMedications && patient.currentMedications.length > 0 && (
+                {user.profile?.currentMedications && user.profile.currentMedications.length > 0 && (
                   <div>
                     <h4 className="text-sm font-medium mb-2">Current Medications</h4>
                     <div className="flex flex-wrap gap-1">
-                      {patient.currentMedications.map((medication, index) => (
+                      {user.profile.currentMedications.map((medication, index) => (
                         <Badge key={index} variant="outline" className="text-xs">
                           {medication}
                         </Badge>

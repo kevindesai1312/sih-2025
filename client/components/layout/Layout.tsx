@@ -1,5 +1,5 @@
 import { useI18n } from "@/lib/i18n";
-import { Globe, Menu } from "lucide-react";
+import { Globe, Menu, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,8 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useAuth } from "@/lib/auth";
-import { usePatientAuth } from "@/lib/patient-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -57,13 +56,16 @@ function Header() {
             {t("nav_architecture")}
           </a>
           <a href="/awareness" className="hover:text-primary transition-colors">
-            Awareness
+            Health Tips
           </a>
-          <a href="/doctor/auth" className="hover:text-primary transition-colors">
-            Doctor Portal
+          <a href="/#symptom" className="hover:text-primary transition-colors">
+            Symptom Checker
           </a>
-          <a href="#about" className="hover:text-primary transition-colors">
-            About
+          <a href="/#records" className="hover:text-primary transition-colors">
+            Health Records
+          </a>
+          <a href="/login" className="hover:text-primary transition-colors">
+            Login
           </a>
         </nav>
         <div className="flex items-center gap-2">
@@ -103,19 +105,23 @@ function Header() {
               className="block"
               onClick={() => setOpen(false)}
             >
-              Awareness
+              Health Tips
             </a>
             <a
-              href="/doctor/auth"
+              href="/#symptom"
               className="block"
               onClick={() => setOpen(false)}
             >
-              Doctor Portal
+              Symptom Checker
             </a>
-            <a href="#about" className="block" onClick={() => setOpen(false)}>
-              About
+            <a
+              href="/#records"
+              className="block"
+              onClick={() => setOpen(false)}
+            >
+              Health Records
             </a>
-            <a href="/auth" className="block" onClick={() => setOpen(false)}>
+            <a href="/login" className="block" onClick={() => setOpen(false)}>
               Login / Sign up
             </a>
           </div>
@@ -126,22 +132,45 @@ function Header() {
 }
 
 function AuthButtons() {
-  const { patient, logout } = usePatientAuth();
-  if (patient) {
+  const { user, logout, isPatient, isDoctor, isGuest } = useUnifiedAuth();
+  
+  if (user) {
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="text-muted-foreground hidden sm:inline">
-          Hi, {patient.name}
+          Hi, {user.name}
+          {isPatient && " (Patient)"}
+          {isDoctor && " (Doctor)"}
+          {isGuest && " (Guest)"}
         </span>
+        {isGuest && (
+          <Button asChild variant="default" size="sm">
+            <a href="/login">
+              <UserPlus className="h-3 w-3 mr-1" />
+              Sign Up
+            </a>
+          </Button>
+        )}
         <Button variant="outline" onClick={logout}>
-          Logout
+          {isGuest ? "Exit Guest" : "Logout"}
         </Button>
+        {isPatient && (
+          <Button asChild variant="default" size="sm">
+            <a href="/patient/dashboard">Dashboard</a>
+          </Button>
+        )}
+        {isDoctor && (
+          <Button asChild variant="default" size="sm">
+            <a href="/doctor/dashboard">Dashboard</a>
+          </Button>
+        )}
       </div>
     );
   }
+  
   return (
     <Button asChild variant="outline">
-      <a href="/auth">Login / Sign up</a>
+      <a href="/login">Login / Sign up</a>
     </Button>
   );
 }

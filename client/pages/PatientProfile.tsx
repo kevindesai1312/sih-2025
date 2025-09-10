@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { usePatientAuth } from "@/lib/patient-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 
 export default function PatientProfile() {
-  const { patient, token } = usePatientAuth();
+  const { user } = useUnifiedAuth();
   const nav = useNavigate();
   const { toast } = useToast();
   
@@ -52,14 +52,15 @@ export default function PatientProfile() {
   const [newMedication, setNewMedication] = useState<string>("");
 
   useEffect(() => {
-    if (!patient || !token) {
-      nav("/auth");
+    if (!user || user.role !== "patient") {
+      nav("/login");
       return;
     }
     
     // Initialize form with patient data
+    const patient = user.profile || {};
     setProfileData({
-      name: patient.name || "",
+      name: user.name || "",
       phone: patient.phone || "",
       dateOfBirth: patient.dateOfBirth ? patient.dateOfBirth.split('T')[0] : "",
       gender: patient.gender || "",
@@ -74,7 +75,7 @@ export default function PatientProfile() {
       allergies: patient.allergies || [],
       currentMedications: patient.currentMedications || []
     });
-  }, [patient, token, nav]);
+  }, [user, nav]);
 
   const handleInputChange = (field: string, value: string) => {
     setProfileData(prev => ({
@@ -121,7 +122,7 @@ export default function PatientProfile() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         },
         body: JSON.stringify(profileData)
       });
@@ -153,7 +154,7 @@ export default function PatientProfile() {
     }
   };
 
-  if (!patient) {
+  if (!user || user.role !== "patient") {
     return null;
   }
 
@@ -469,7 +470,7 @@ export default function PatientProfile() {
               <div>
                 <Label>Email Address (Cannot be changed)</Label>
                 <Input
-                  value={patient.email}
+                  value={user.email || user.profile?.email || ""}
                   disabled
                   className="bg-muted"
                 />

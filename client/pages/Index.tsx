@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { useAuth } from "@/lib/auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,21 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
+  Crown,
+  UserPlus,
+  Heart,
+  Star,
 } from "lucide-react";
 
 export default function Index() {
   const { t } = useI18n();
+  const { user, isGuest } = useUnifiedAuth();
   const [exampleFromServer, setExampleFromServer] = useState("");
+  
   useEffect(() => {
     fetchDemo();
   }, []);
+  
   const fetchDemo = async () => {
     try {
       const response = await fetch("/api/demo");
@@ -47,6 +54,27 @@ export default function Index() {
       console.error("Error fetching hello:", error);
     }
   };
+
+  // If user is a guest, show them the guest dashboard instead
+  if (isGuest) {
+    return (
+      <div className="bg-gradient-to-b from-secondary to-white">
+        <GuestHero />
+        <Stats />
+        <Features />
+        <div className="container grid gap-6 py-10 md:grid-cols-2">
+          <SymptomChecker />
+          <OfflineRecords />
+        </div>
+        <MedicineAvailability />
+        <GuestUpgradeSection />
+        <Architecture />
+        <AboutUs />
+        <FooterRibbon />
+        <p className="sr-only">{exampleFromServer}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-b from-secondary to-white">
@@ -231,6 +259,191 @@ function FeatureCard({
         {desc}
       </CardContent>
     </Card>
+  );
+}
+
+// Guest-specific components
+function GuestHero() {
+  const { t } = useI18n();
+  const { user } = useUnifiedAuth();
+  
+  return (
+    <section className="relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <svg
+          className="absolute -top-24 -right-24 opacity-20"
+          width="400"
+          height="400"
+          viewBox="0 0 200 200"
+        >
+          <defs>
+            <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stopColor="hsl(var(--primary))" />
+              <stop offset="100%" stopColor="hsl(var(--accent))" />
+            </linearGradient>
+          </defs>
+          <circle cx="100" cy="100" r="90" fill="url(#g)" />
+        </svg>
+      </div>
+      <div className="container py-16 md:py-24">
+        {/* Guest Welcome Banner */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-blue-900 mb-2 flex items-center gap-2">
+                <Heart className="h-6 w-6" />
+                Welcome to {t("appName")}! 👋
+              </h2>
+              <p className="text-blue-700 mb-4">
+                You're exploring as a guest. Try our health tools below or create a free account for full access.
+              </p>
+              <div className="flex gap-3">
+                <Button asChild>
+                  <a href="/login">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Create Free Account
+                  </a>
+                </Button>
+                <Button variant="outline" asChild>
+                  <a href="#symptom">Try Symptom Checker</a>
+                </Button>
+              </div>
+            </div>
+            <div className="hidden md:block">
+              <Badge className="bg-yellow-500 text-yellow-900 font-medium px-3 py-1">
+                <Crown className="h-4 w-4 mr-1" />
+                Guest Mode
+              </Badge>
+            </div>
+          </div>
+        </div>
+        
+        {/* Regular Hero Content */}
+        <div className="text-center md:text-left grid md:grid-cols-2 items-center gap-10">
+          <div>
+            <Badge className="mb-4" variant="secondary">
+              {t("tagline")}
+            </Badge>
+            <h1 className="text-3xl md:text-5xl font-extrabold leading-tight">
+              {t("hero_title")}
+            </h1>
+            <p className="mt-4 text-muted-foreground md:text-lg">
+              {t("hero_sub")}
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
+              <Button asChild size="lg">
+                <a href="#symptom">{t("cta_assess")}</a>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <a href="#records">{t("cta_records")}</a>
+              </Button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Languages className="h-4 w-4 text-primary" /> {t("f1_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {t("f1_desc")}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Database className="h-4 w-4 text-primary" /> {t("f2_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {t("f2_desc")}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-primary" /> {t("f3_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {t("f3_desc")}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Brain className="h-4 w-4 text-primary" /> {t("f4_title")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground">
+                {t("f4_desc")}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function GuestUpgradeSection() {
+  const { t } = useI18n();
+  
+  return (
+    <section className="container py-12">
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardContent className="pt-8">
+          <div className="text-center max-w-3xl mx-auto">
+            <Crown className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+            <h2 className="text-2xl md:text-3xl font-bold text-blue-900 mb-4">
+              Unlock Your Complete Health Journey
+            </h2>
+            <p className="text-blue-700 mb-6 text-lg">
+              Create a free account to access personalized health tracking, book doctor appointments, 
+              and keep your medical history secure.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="text-center">
+                <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <h3 className="font-medium text-blue-900">Book Appointments</h3>
+                <p className="text-sm text-blue-700">Schedule consultations with qualified doctors</p>
+              </div>
+              <div className="text-center">
+                <Database className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <h3 className="font-medium text-blue-900">Health Records</h3>
+                <p className="text-sm text-blue-700">Secure storage for your medical history</p>
+              </div>
+              <div className="text-center">
+                <Star className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                <h3 className="font-medium text-blue-900">Personalized Care</h3>
+                <p className="text-sm text-blue-700">Tailored health recommendations</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button size="lg" asChild>
+                <a href="/login">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create Free Account
+                </a>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <a href="/login">
+                  <Stethoscope className="h-4 w-4 mr-2" />
+                  I'm a Doctor
+                </a>
+              </Button>
+            </div>
+            
+            <p className="text-xs text-blue-600 mt-4">
+              ✓ No credit card required ✓ Free forever ✓ Data privacy guaranteed
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
@@ -643,7 +856,7 @@ function SymptomChecker() {
 
 function OfflineRecords() {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, isGuest } = useUnifiedAuth();
   const [name, setName] = useState("");
   const [age, setAge] = useState<number | "">("");
   const [notes, setNotes] = useState("");
@@ -756,11 +969,18 @@ function OfflineRecords() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {user ? (
+          {user && !isGuest ? (
             <Button onClick={save}>{t("records_save")}</Button>
+          ) : isGuest ? (
+            <Button variant="outline" asChild>
+              <a href="/login">
+                <Crown className="h-4 w-4 mr-2" />
+                Create Account to Save
+              </a>
+            </Button>
           ) : (
             <Button asChild>
-              <a href="/auth">Login to save</a>
+              <a href="/login">Login to save</a>
             </Button>
           )}
           <Button variant="outline" onClick={exportJson}>
@@ -778,6 +998,19 @@ function OfflineRecords() {
             </span>
           </label>
         </div>
+        
+        {/* Guest Limitation Notice */}
+        {isGuest && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mt-3">
+            <div className="flex items-center gap-2 text-yellow-800 text-sm">
+              <Crown className="h-4 w-4" />
+              <span className="font-medium">Guest Mode: Limited Features</span>
+            </div>
+            <p className="text-yellow-700 text-xs mt-1">
+              As a guest, your records are only stored locally. Create a free account to save securely in the cloud and access from any device.
+            </p>
+          </div>
+        )}
         <Separator />
         <div className="space-y-2 max-h-64 overflow-auto pr-1">
           {records.length === 0 ? (
@@ -807,6 +1040,7 @@ function OfflineRecords() {
 
 function MedicineAvailability() {
   const { t } = useI18n();
+  const { isGuest } = useUnifiedAuth();
   const [pincode, setPincode] = useState("");
   const [query, setQuery] = useState("");
   const [onlyStock, setOnlyStock] = useState(false);
@@ -899,6 +1133,27 @@ function MedicineAvailability() {
           {t("pharmacy_check")}
         </Button>
       </div>
+      
+      {/* Guest Limitation Notice */}
+      {isGuest && (
+        <div className="mt-4 bg-blue-50 border border-blue-200 rounded-md p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-800 text-sm">
+              <Crown className="h-4 w-4" />
+              <span className="font-medium">Guest Mode: Limited Medicine Search</span>
+            </div>
+            <Button size="sm" asChild>
+              <a href="/login">
+                <UserPlus className="h-3 w-3 mr-1" />
+                Sign Up for Full Access
+              </a>
+            </Button>
+          </div>
+          <p className="text-blue-700 text-xs mt-1">
+            Create a free account to save medicine watchlists, get stock alerts, and access advanced pharmacy features.
+          </p>
+        </div>
+      )}
       <div className="mt-4 grid gap-3 md:grid-cols-3">
         {data &&
           [...data.items]
@@ -923,6 +1178,12 @@ function MedicineAvailability() {
                       <button
                         className={`text-xs underline ${watch.includes(m.name) ? "text-accent" : ""}`}
                         onClick={() => {
+                          if (isGuest) {
+                            // For guests, show upgrade prompt instead of saving
+                            alert("Create a free account to save medicine watchlists and get stock alerts!");
+                            return;
+                          }
+                          
                           const next = watch.includes(m.name)
                             ? watch.filter((x) => x !== m.name)
                             : [...watch, m.name];
@@ -933,7 +1194,7 @@ function MedicineAvailability() {
                           );
                         }}
                       >
-                        {watch.includes(m.name) ? "Watching" : "Watch"}
+                        {isGuest ? "Sign Up to Watch" : (watch.includes(m.name) ? "Watching" : "Watch")}
                       </button>
                     </div>
                   </CardTitle>

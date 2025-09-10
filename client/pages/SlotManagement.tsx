@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useDoctorAuth } from "@/lib/doctor-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { 
   Calendar, 
@@ -41,7 +41,7 @@ interface Slot {
 }
 
 export default function SlotManagement() {
-  const { doctor, token } = useDoctorAuth();
+  const { user } = useUnifiedAuth();
   const nav = useNavigate();
   const [slots, setSlots] = useState<Slot[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -64,12 +64,12 @@ export default function SlotManagement() {
   });
 
   useEffect(() => {
-    if (!doctor || !token) {
-      nav("/doctor/auth");
+    if (!user || user.role !== "doctor") {
+      nav("/login");
       return;
     }
     fetchData();
-  }, [doctor, token, nav]);
+  }, [user, nav]);
 
   const fetchData = async () => {
     try {
@@ -77,12 +77,12 @@ export default function SlotManagement() {
       const [slotsRes, patientsRes] = await Promise.all([
         fetch('/api/doctor/slots', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${user?.token || user?.id}`
           }
         }),
         fetch('/api/doctor/patients', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${user?.token || user?.id}`
           }
         })
       ]);
@@ -122,7 +122,7 @@ export default function SlotManagement() {
       const response = await fetch('/api/doctor/slots', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token || user?.id}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(slotData)
@@ -163,7 +163,7 @@ export default function SlotManagement() {
       const response = await fetch(`/api/doctor/slots/${selectedSlot._id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token || user?.id}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(slotData)
@@ -198,7 +198,7 @@ export default function SlotManagement() {
       const response = await fetch(`/api/doctor/slots/${slotId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -271,7 +271,7 @@ export default function SlotManagement() {
     return matchesSearch && matchesStatus;
   });
 
-  if (!doctor) {
+  if (!user || user.role !== "doctor") {
     return null;
   }
 

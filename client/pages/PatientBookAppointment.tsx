@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { usePatientAuth } from "@/lib/patient-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -36,7 +36,7 @@ interface Slot {
 }
 
 export default function PatientBookAppointment() {
-  const { patient, token } = usePatientAuth();
+  const { user } = useUnifiedAuth();
   const nav = useNavigate();
   const { toast } = useToast();
   
@@ -52,12 +52,12 @@ export default function PatientBookAppointment() {
   const [slotsLoading, setSlotsLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!patient || !token) {
-      nav("/auth");
+    if (!user || user.role !== "patient") {
+      nav("/login");
       return;
     }
     fetchDoctors();
-  }, [patient, token, nav]);
+  }, [user, nav]);
 
   useEffect(() => {
     if (selectedDoctor && selectedDate) {
@@ -73,7 +73,7 @@ export default function PatientBookAppointment() {
       setDoctorsLoading(true);
       const response = await fetch('/api/patient/doctors', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -104,7 +104,7 @@ export default function PatientBookAppointment() {
       setSlotsLoading(true);
       const response = await fetch(`/api/patient/doctors/${selectedDoctor}/slots?date=${selectedDate}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -146,7 +146,7 @@ export default function PatientBookAppointment() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         },
         body: JSON.stringify({
           slotId: selectedSlot,
@@ -187,7 +187,7 @@ export default function PatientBookAppointment() {
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
 
-  if (!patient) {
+  if (!user || user.role !== "patient") {
     return null;
   }
 

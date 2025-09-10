@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useDoctorAuth } from "@/lib/doctor-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { 
   Stethoscope, 
@@ -16,31 +16,31 @@ import {
 } from "lucide-react";
 
 export default function DoctorDashboard() {
-  const { doctor, logout, token } = useDoctorAuth();
+  const { user, logout } = useUnifiedAuth();
   const nav = useNavigate();
   const [patients, setPatients] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!doctor || !token) {
-      nav("/doctor/auth");
+    if (!user || user.role !== "doctor") {
+      nav("/login");
       return;
     }
     fetchDashboardData();
-  }, [doctor, token, nav]);
+  }, [user, nav]);
 
   const fetchDashboardData = async () => {
     try {
       const [patientsRes, slotsRes] = await Promise.all([
         fetch('/api/doctor/patients', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${user?.token || user?.id}` // Using user ID as token for demo
           }
         }),
         fetch('/api/doctor/slots', {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${user?.token || user?.id}`
           }
         })
       ]);
@@ -63,10 +63,10 @@ export default function DoctorDashboard() {
 
   const handleLogout = () => {
     logout();
-    nav("/doctor/auth");
+    nav("/login");
   };
 
-  if (!doctor) {
+  if (!user || user.role !== "doctor") {
     return null;
   }
 
@@ -80,7 +80,7 @@ export default function DoctorDashboard() {
               <Stethoscope className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-xl font-semibold">Doctor Dashboard</h1>
-                <p className="text-sm text-muted-foreground">Welcome back, Dr. {doctor.name}</p>
+                <p className="text-sm text-muted-foreground">Welcome back, Dr. {user.name}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout}>
@@ -104,19 +104,19 @@ export default function DoctorDashboard() {
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{doctor.name}</span>
+                <span className="text-sm font-medium">{user.name}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{doctor.email}</span>
+                <span className="text-sm">{user.email}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{doctor.phone}</span>
+                <span className="text-sm">{user.profile?.phone || 'Not provided'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-muted-foreground" />
-                <Badge variant="secondary">{doctor.specialization}</Badge>
+                <Badge variant="secondary">{user.profile?.specialization || 'General Medicine'}</Badge>
               </div>
             </CardContent>
           </Card>

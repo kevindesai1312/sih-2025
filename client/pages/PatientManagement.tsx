@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useDoctorAuth } from "@/lib/doctor-auth";
+import { useUnifiedAuth } from "@/lib/unified-auth";
 import { useNavigate } from "react-router-dom";
 import { 
   Users, 
@@ -35,7 +35,7 @@ interface Patient {
 }
 
 export default function PatientManagement() {
-  const { doctor, token } = useDoctorAuth();
+  const { user } = useUnifiedAuth();
   const nav = useNavigate();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,19 +58,19 @@ export default function PatientManagement() {
   });
 
   useEffect(() => {
-    if (!doctor || !token) {
-      nav("/doctor/auth");
+    if (!user || user.role !== "doctor") {
+      nav("/login");
       return;
     }
     fetchPatients();
-  }, [doctor, token, nav]);
+  }, [user, nav]);
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/doctor/patients', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -107,7 +107,7 @@ export default function PatientManagement() {
       const response = await fetch('/api/doctor/patients', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token || user?.id}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(patientData)
@@ -149,7 +149,7 @@ export default function PatientManagement() {
       const response = await fetch(`/api/doctor/patients/${selectedPatient._id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${user?.token || user?.id}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(patientData)
@@ -184,7 +184,7 @@ export default function PatientManagement() {
       const response = await fetch(`/api/doctor/patients/${patientId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${user?.token || user?.id}`
         }
       });
 
@@ -241,7 +241,7 @@ export default function PatientManagement() {
     patient.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (!doctor) {
+  if (!user || user.role !== "doctor") {
     return null;
   }
 
