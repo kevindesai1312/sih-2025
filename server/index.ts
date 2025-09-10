@@ -14,6 +14,8 @@ import {
   handlePharmacies,
   handleAddMedicine
 } from "./routes/admin";
+import doctorRoutes from "./routes/doctor";
+import patientRoutes from "./routes/patient";
 
 export function createServer() {
   const app = express();
@@ -47,6 +49,12 @@ export function createServer() {
   app.get("/api/medicines", handleMedicines);
   app.post("/api/symptoms/check", handleSymptomCheck);
   app.get("/api/symptoms/list", getSymptomsList);
+
+  // Doctor routes
+  app.use("/api/doctor", doctorRoutes);
+
+  // Patient routes
+  app.use("/api/patient", patientRoutes);
 
   // Database and admin routes
   app.get("/api/health/database", handleDatabaseHealth);

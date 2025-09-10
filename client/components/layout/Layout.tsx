@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
+import { usePatientAuth } from "@/lib/patient-auth";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -58,6 +59,9 @@ function Header() {
           <a href="/awareness" className="hover:text-primary transition-colors">
             Awareness
           </a>
+          <a href="/doctor/auth" className="hover:text-primary transition-colors">
+            Doctor Portal
+          </a>
           <a href="#about" className="hover:text-primary transition-colors">
             About
           </a>
@@ -101,6 +105,13 @@ function Header() {
             >
               Awareness
             </a>
+            <a
+              href="/doctor/auth"
+              className="block"
+              onClick={() => setOpen(false)}
+            >
+              Doctor Portal
+            </a>
             <a href="#about" className="block" onClick={() => setOpen(false)}>
               About
             </a>
@@ -115,12 +126,12 @@ function Header() {
 }
 
 function AuthButtons() {
-  const { user, logout } = useAuth();
-  if (user) {
+  const { patient, logout } = usePatientAuth();
+  if (patient) {
     return (
       <div className="flex items-center gap-2 text-sm">
         <span className="text-muted-foreground hidden sm:inline">
-          Hi, {user.name}
+          Hi, {patient.name}
         </span>
         <Button variant="outline" onClick={logout}>
           Logout

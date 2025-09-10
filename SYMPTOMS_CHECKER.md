@@ -161,5 +161,5 @@ Returns the complete list of available symptoms.
 3. **Medication Interactions**: Check against current medications
 4. **Symptom Tracking**: Monitor progression over time
 5. **Specialist Referrals**: Direct connection to appropriate specialists
-6. **Telemedicine Integration**: Video consultation booking
+6. **Specialist Referrals**: Direct connection to appropriate specialists
 7. **Public Health Alerts**: Regional disease outbreak warnings

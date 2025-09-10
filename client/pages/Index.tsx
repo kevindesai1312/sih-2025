@@ -24,12 +24,8 @@ import {
   Database,
   Languages,
   MapPin,
-  Mic,
-  ScreenShare,
   Server,
   Stethoscope,
-  Video,
-  VideoOff,
   AlertTriangle,
   CheckCircle,
   Clock,
@@ -55,7 +51,6 @@ export default function Index() {
   return (
     <div className="bg-gradient-to-b from-secondary to-white">
       <Hero />
-      <Consultation />
       <Stats />
       <Features />
       <div className="container grid gap-6 py-10 md:grid-cols-2">
@@ -236,250 +231,6 @@ function FeatureCard({
         {desc}
       </CardContent>
     </Card>
-  );
-}
-
-function Consultation() {
-  const localRef = useRef<HTMLVideoElement | null>(null);
-  const remoteRef = useRef<HTMLVideoElement | null>(null);
-  const pc1 = useRef<RTCPeerConnection | null>(null);
-  const pc2 = useRef<RTCPeerConnection | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [running, setRunning] = useState(false);
-  const [lowData, setLowData] = useState(true);
-  const [videoEnabled, setVideoEnabled] = useState(true);
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
-  const chunks = useRef<Blob[]>([]);
-
-  async function start() {
-    const constraints: MediaStreamConstraints = {
-      audio: { noiseSuppression: true, echoCancellation: true },
-      video: videoEnabled
-        ? lowData
-          ? {
-              width: { ideal: 320 },
-              height: { ideal: 240 },
-              frameRate: { ideal: 15, max: 15 },
-            }
-          : {
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-              frameRate: { ideal: 30, max: 30 },
-            }
-        : false,
-    } as any;
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    setLocalStream(stream);
-    if (localRef.current) localRef.current.srcObject = stream;
-
-    pc1.current = new RTCPeerConnection();
-    pc2.current = new RTCPeerConnection();
-
-    const rs = new MediaStream();
-    setRemoteStream(rs);
-    if (remoteRef.current) remoteRef.current.srcObject = rs;
-
-    pc2.current.ontrack = (e) => {
-      e.streams[0].getTracks().forEach((t) => rs.addTrack(t));
-    };
-
-    stream.getTracks().forEach((t) => pc1.current!.addTrack(t, stream));
-
-    const offer = await pc1.current.createOffer();
-    await pc1.current.setLocalDescription(offer);
-    await pc2.current.setRemoteDescription(offer);
-
-    const answer = await pc2.current.createAnswer();
-    await pc2.current.setLocalDescription(answer);
-    await pc1.current.setRemoteDescription(answer);
-
-    setRunning(true);
-  }
-
-  function toggleAudio() {
-    const enabled = !audioEnabled;
-    setAudioEnabled(enabled);
-    localStream?.getAudioTracks().forEach((t) => (t.enabled = enabled));
-  }
-
-  function toggleVideo() {
-    const enabled = !videoEnabled;
-    setVideoEnabled(enabled);
-    localStream?.getVideoTracks().forEach((t) => (t.enabled = enabled));
-  }
-
-  async function shareScreen() {
-    try {
-      const display = await (navigator.mediaDevices as any).getDisplayMedia({
-        video: true,
-        audio: true,
-      });
-      const sender = pc1.current
-        ?.getSenders()
-        .find((s) => s.track?.kind === "video");
-      if (sender) await sender.replaceTrack(display.getVideoTracks()[0]);
-      if (remoteRef.current) remoteRef.current.focus();
-      display.getVideoTracks()[0].addEventListener("ended", async () => {
-        if (localStream?.getVideoTracks()[0] && sender)
-          await sender.replaceTrack(localStream.getVideoTracks()[0]);
-      });
-    } catch {}
-  }
-
-  function startRecording() {
-    const mix = new MediaStream([
-      ...(remoteStream ? remoteStream.getTracks() : []),
-      ...(localStream ? localStream.getAudioTracks() : []),
-    ]);
-    const rec = new MediaRecorder(mix, {
-      mimeType: "video/webm;codecs=vp8,opus",
-    });
-    setRecorder(rec);
-    chunks.current = [];
-    rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
-    rec.onstop = () => {
-      const blob = new Blob(chunks.current, { type: "video/webm" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `consultation-${Date.now()}.webm`;
-      a.click();
-      URL.revokeObjectURL(url);
-    };
-    rec.start();
-  }
-
-  function stopRecording() {
-    recorder?.stop();
-    setRecorder(null);
-  }
-
-  function end() {
-    pc1.current?.close();
-    pc2.current?.close();
-    pc1.current = null;
-    pc2.current = null;
-    localStream?.getTracks().forEach((t) => t.stop());
-    remoteStream?.getTracks().forEach((t) => t.stop());
-    setLocalStream(null);
-    setRemoteStream(null);
-    setRunning(false);
-  }
-
-  return (
-    <section id="consult" className="container py-10">
-      <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-        <Video className="h-6 w-6 text-primary" /> Online consultation (video +
-        audio)
-      </h2>
-      <Card className="mt-4">
-        <CardContent className="pt-6 grid gap-6 md:grid-cols-2">
-          <div className="space-y-3">
-            <div className="aspect-video rounded-md overflow-hidden border bg-black/80 relative">
-              <video
-                ref={remoteRef}
-                autoPlay
-                playsInline
-                className="h-full w-full object-cover absolute inset-0"
-                style={{
-                  display:
-                    remoteRef.current && (remoteRef.current as any).srcObject
-                      ? "block"
-                      : "none",
-                }}
-              />
-              <video
-                className="h-full w-full object-cover"
-                autoPlay
-                muted
-                loop
-                playsInline
-                src="https://media.w3.org/2010/05/sintel/trailer.mp4"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="flex items-center gap-2">
-                <input
-                  id="low"
-                  type="checkbox"
-                  checked={lowData}
-                  onChange={(e) => setLowData(e.target.checked)}
-                />
-                <label htmlFor="low">Low data (240p/15fps)</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="vid"
-                  type="checkbox"
-                  checked={videoEnabled}
-                  onChange={toggleVideo}
-                />
-                <label htmlFor="vid">Video</label>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  id="aud"
-                  type="checkbox"
-                  checked={audioEnabled}
-                  onChange={toggleAudio}
-                />
-                <label htmlFor="aud">Audio</label>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!running ? (
-                <Button onClick={start}>
-                  <Video className="h-4 w-4" /> Start consultation
-                </Button>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={toggleAudio}>
-                    <Mic className="h-4 w-4" />{" "}
-                    {audioEnabled ? "Mute" : "Unmute"}
-                  </Button>
-                  <Button variant="outline" onClick={toggleVideo}>
-                    <VideoOff className="h-4 w-4" />{" "}
-                    {videoEnabled ? "Stop video" : "Start video"}
-                  </Button>
-                  <Button variant="outline" onClick={shareScreen}>
-                    <ScreenShare className="h-4 w-4" /> Share screen
-                  </Button>
-                  {!recorder ? (
-                    <Button variant="default" onClick={startRecording}>
-                      Record
-                    </Button>
-                  ) : (
-                    <Button variant="destructive" onClick={stopRecording}>
-                      Stop recording
-                    </Button>
-                  )}
-                  <Button variant="ghost" onClick={end}>
-                    End
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
-          <div>
-            <div className="aspect-video rounded-md overflow-hidden border bg-black/40">
-              <video
-                ref={localRef}
-                autoPlay
-                muted
-                playsInline
-                className="h-full w-full object-cover"
-              />
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Local preview (muted)
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </section>
   );
 }
 
@@ -1374,7 +1125,7 @@ function AboutUs() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Public health experts, rural clinicians, and engineers with
-            experience in PWA, WebRTC, and scalable cloud.
+            experience in PWA, offline-first design, and scalable cloud.
           </CardContent>
         </Card>
         <Card>

@@ -25,7 +25,7 @@ export default function Awareness() {
                 For chest pain, severe breathlessness, or bleeding—seek ER
                 immediately.
               </li>
-              <li>Carry previous prescriptions and IDs for video consults.</li>
+              <li>Carry previous prescriptions and IDs for consultations.</li>
               <li>Use ORS for diarrhea; maintain hydration.</li>
             </ul>
           </CardContent>

@@ -1,4 +1,6 @@
 import { Medicine, IMedicine, Pharmacy, IPharmacy, Symptom, ISymptom, SymptomRecord, ISymptomRecord } from '../models/index';
+import { Doctor, Slot } from '../models/doctor';
+import bcrypt from 'bcryptjs';
 import type { MedicineAvailability, MedicinesResponse, SymptomCheckInput, AdvancedSymptomCheckResult } from '@shared/api';
 
 // Medicine Service
@@ -323,6 +325,8 @@ export class SeedService {
       const medicineCount = await Medicine.countDocuments();
       const symptomCount = await Symptom.countDocuments();
       const pharmacyCount = await Pharmacy.countDocuments();
+      const doctorCount = await Doctor.countDocuments();
+      const slotCount = await Slot.countDocuments();
 
       if (medicineCount === 0) {
         await this.seedMedicines();
@@ -334,6 +338,14 @@ export class SeedService {
 
       if (pharmacyCount === 0) {
         await this.seedPharmacies();
+      }
+
+      if (doctorCount === 0) {
+        await this.seedDoctors();
+      }
+
+      if (slotCount === 0) {
+        await this.seedSlots();
       }
 
       console.log('✅ Database seeding completed');
@@ -385,5 +397,107 @@ export class SeedService {
 
     await Pharmacy.insertMany(pharmacies);
     console.log('✅ Pharmacies seeded');
+  }
+
+  private static async seedDoctors(): Promise<void> {
+    const hashedPassword = await bcrypt.hash('test@123', 10);
+    
+    const doctors = [
+      {
+        username: 'testdoctor',
+        password: hashedPassword,
+        name: 'Test Doctor',
+        specialization: 'General Medicine',
+        email: 'test@gmail.com',
+        phone: '1234567890'
+      },
+      {
+        username: 'docuser',
+        password: hashedPassword,
+        name: 'Dr. Smith',
+        specialization: 'Cardiology',
+        email: 'doc@gmail.com',
+        phone: '9876543210'
+      },
+      {
+        username: 'drmary',
+        password: hashedPassword,
+        name: 'Dr. Mary Johnson',
+        specialization: 'Pediatrics',
+        email: 'mary@doctor.com',
+        phone: '8765432109'
+      },
+      {
+        username: 'drpatric',
+        password: hashedPassword,
+        name: 'Dr. Patrick Wilson',
+        specialization: 'Orthopedics',
+        email: 'patrick@clinic.com',
+        phone: '7654321098'
+      }
+    ];
+
+    await Doctor.insertMany(doctors);
+    console.log('✅ Doctors seeded');
+  }
+
+  private static async seedSlots(): Promise<void> {
+    // Get all doctors to create slots for them
+    const doctors = await Doctor.find();
+    
+    if (doctors.length === 0) {
+      console.log('⚠️ No doctors found, skipping slot seeding');
+      return;
+    }
+
+    const slots = [];
+    const today = new Date();
+    
+    // Create slots for the next 7 days
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + dayOffset);
+      
+      // Skip Sundays
+      if (date.getDay() === 0) continue;
+      
+      for (const doctor of doctors) {
+        // Morning slots (9:00 AM - 12:00 PM)
+        const morningSlots = [
+          { start: '09:00', end: '09:30' },
+          { start: '09:30', end: '10:00' },
+          { start: '10:00', end: '10:30' },
+          { start: '10:30', end: '11:00' },
+          { start: '11:00', end: '11:30' },
+          { start: '11:30', end: '12:00' }
+        ];
+        
+        // Evening slots (2:00 PM - 5:00 PM)
+        const eveningSlots = [
+          { start: '14:00', end: '14:30' },
+          { start: '14:30', end: '15:00' },
+          { start: '15:00', end: '15:30' },
+          { start: '15:30', end: '16:00' },
+          { start: '16:00', end: '16:30' },
+          { start: '16:30', end: '17:00' }
+        ];
+        
+        const allSlots = [...morningSlots, ...eveningSlots];
+        
+        for (const timeSlot of allSlots) {
+          slots.push({
+            doctorId: doctor._id,
+            date: new Date(date),
+            startTime: timeSlot.start,
+            endTime: timeSlot.end,
+            isBooked: false,
+            status: 'available'
+          });
+        }
+      }
+    }
+
+    await Slot.insertMany(slots);
+    console.log(`✅ ${slots.length} time slots seeded for ${doctors.length} doctors`);
   }
 }
